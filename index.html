@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vampire Survivor Clone</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <h1>Vampire Survivor Clone</h1>
+            <p>Use WASD or Arrow Keys to move</p>
+            <p>Press ESC to pause</p>
+            <button id="start-button">Start Game</button>
+            <p class="high-score">High Score: <span id="high-score">0</span>s</p>
+        </div>
+
+        <!-- Pause Screen -->
+        <div id="pause-screen" class="screen hidden">
+            <h1>Game Paused</h1>
+            <p>Press ESC to resume</p>
+            <p>Current Time: <span id="pause-time">0</span>s</p>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="screen">
+            <h1>Game Over!</h1>
+            <p>You survived for <span id="final-score">0</span> seconds!</p>
+            <p>High Score: <span id="game-over-high-score">0</span>s</p>
+            <button id="restart-button">Play Again</button>
+        </div>
+
+        <!-- In-game UI -->
+        <div id="ui">
+            <div id="score">Time: 0s</div>
+            <button id="mute-button" class="mute-button">🔊</button>
+        </div>
+    </div>
+    <script src="audio.js"></script>
+    <script src="player.js"></script>
+    <script src="enemy.js"></script>
+    <script src="weapon.js"></script>
+    <script src="healthItem.js"></script>
+    <script src="upgrade.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
