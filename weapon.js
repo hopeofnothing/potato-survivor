@@ -5,14 +5,14 @@ class Projectile {
         this.speed = speed;
         this.size = 8;
         this.piercing = 1;
-        this.hitEnemies = new Set();
+        this.hitCount = 0;
         this.explodes = false;
         this.explosionLevel = 0;
         this.baseExplosionRadius = 50;
         this.isExploding = false;
         this.explosionX = 0;
         this.explosionY = 0;
-        this.explosionDuration = 15;
+        this.explosionDuration = 20;
         this.explosionTimer = 0;
         
         const dx = targetX - x;
@@ -52,28 +52,37 @@ class Projectile {
 
             ctx.restore();
         } else if (this.explosionTimer > 0) {
+            console.log('Drawing explosion, timer:', this.explosionTimer);  // Debug log
             const alpha = this.explosionTimer / this.explosionDuration;
-            ctx.save();
-            ctx.globalAlpha = alpha;
+            const radius = this.getExplosionRadius();
+            
+            // Draw a test rectangle first to verify context is working
+            ctx.fillStyle = 'red';
+            ctx.fillRect(this.explosionX - 10, this.explosionY - 10, 20, 20);
+            
+            // Draw explosion effect
             ctx.beginPath();
-            ctx.arc(this.explosionX, this.explosionY, this.getExplosionRadius(), 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 68, 0, 0.3)';
+            ctx.arc(this.explosionX, this.explosionY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff6600';  // Solid orange color first
             ctx.fill();
-            ctx.strokeStyle = '#ff4400';
+            
+            // Add a solid border
+            ctx.strokeStyle = '#ffff00';  // Solid yellow
+            ctx.lineWidth = 4;
             ctx.stroke();
-            ctx.restore();
         }
     }
 
-    canHitEnemy(enemy) {
-        return !this.hitEnemies.has(enemy.id);
+    canHitEnemy() {
+        return this.hitCount < this.piercing;
     }
 
     getExplosionRadius() {
-        return this.baseExplosionRadius * (1 + this.explosionLevel * 0.5);
+        return this.baseExplosionRadius * (1 + this.explosionLevel * 0.2);
     }
 
     startExplosion(x, y) {
+        console.log('Starting explosion at:', x, y);  // Debug log
         this.isExploding = true;
         this.explosionX = x;
         this.explosionY = y;
@@ -81,8 +90,12 @@ class Projectile {
     }
 
     shouldBeRemoved() {
-        return (this.hitEnemies.size >= this.piercing) || 
-               (this.isExploding && this.explosionTimer <= 0);
+        const should = (this.hitCount >= this.piercing) || 
+                      (this.isExploding && this.explosionTimer <= 0);
+        if (should && this.isExploding) {
+            console.log('Removing exploded projectile');  // Debug log
+        }
+        return should;
     }
 }
 
@@ -108,14 +121,48 @@ class WeaponSystem {
             projectile.update();
             
             if (!projectile.isExploding) {
-                for (let enemy of enemies) {
-                    if (this.checkCollision(projectile, enemy) && projectile.canHitEnemy(enemy)) {
-                        this.handleProjectileHit(projectile, enemy, enemies);
+                // Check collisions with all enemies before removing projectile
+                enemies.forEach(enemy => {
+                    if (this.checkCollision(projectile, enemy) && projectile.canHitEnemy()) {
+                        enemy.health -= this.damage;
+                        projectile.hitCount++;
+
+                        // Check if enemy died and add experience
+                        if (enemy.health <= 0 && this.game && this.game.upgradeSystem) {
+                            this.game.upgradeSystem.addExperience(enemy.expValue);
+                        }
+
+                        // Handle explosion if we've hit max enemies or the enemy died
+                        if ((projectile.hitCount >= projectile.piercing || enemy.health <= 0) && 
+                            projectile.explodes && this.explosionLevel > 0) {
+                            projectile.startExplosion(projectile.x, projectile.y);
+                            
+                            // Calculate explosion radius based on level
+                            const radius = projectile.getExplosionRadius() * (1 + this.explosionLevel * 0.2);
+                            
+                            // Apply explosion damage to nearby enemies
+                            enemies.forEach(otherEnemy => {
+                                if (otherEnemy !== enemy && otherEnemy.health > 0) {
+                                    const dx = otherEnemy.x - projectile.x;
+                                    const dy = otherEnemy.y - projectile.y;
+                                    const distance = Math.sqrt(dx * dx + dy * dy);
+                                    
+                                    if (distance <= radius) {
+                                        otherEnemy.health -= this.damage;
+                                        // Check if enemy died from explosion and add experience
+                                        if (otherEnemy.health <= 0 && this.game && this.game.upgradeSystem) {
+                                            this.game.upgradeSystem.addExperience(otherEnemy.expValue);
+                                        }
+                                    }
+                                }
+                            });
+                        }
                     }
-                }
+                });
             }
         });
 
+        // Remove projectiles that have hit their max targets or are done exploding
         this.projectiles = this.projectiles.filter(p => !p.shouldBeRemoved());
 
         if (currentTime - this.lastShot >= this.shotInterval) {
@@ -131,30 +178,7 @@ class WeaponSystem {
         const dx = projectile.x - enemy.x;
         const dy = projectile.y - enemy.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance < (projectile.size/2 + enemy.size/2);
-    }
-
-    handleProjectileHit(projectile, enemy, enemies) {
-        projectile.hitEnemies.add(enemy.id);
-        enemy.health -= this.damage;
-
-        if (projectile.explodes) {
-            projectile.startExplosion(projectile.x, projectile.y);
-            
-            const radius = projectile.getExplosionRadius();
-            enemies.forEach(otherEnemy => {
-                if (!projectile.hitEnemies.has(otherEnemy.id)) {
-                    const dx = otherEnemy.x - projectile.x;
-                    const dy = otherEnemy.y - projectile.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance <= radius) {
-                        otherEnemy.health -= this.damage;
-                        projectile.hitEnemies.add(otherEnemy.id);
-                    }
-                }
-            });
-        }
+        return distance < (projectile.size/2 + enemy.width/2);
     }
 
     shoot(playerX, playerY, targetX, targetY) {

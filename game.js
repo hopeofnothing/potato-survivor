@@ -114,7 +114,7 @@ class Game {
         // Initialize new game objects
         this.player = new Player(this.canvas.width/2, this.canvas.height/2, this);
         this.enemySpawner = new EnemySpawner();
-        this.weaponSystem = new WeaponSystem();
+        this.weaponSystem = new WeaponSystem(this);
         this.upgradeSystem = new UpgradeSystem(this.player, this.weaponSystem);
 
         // Set player reference in enemy spawner
@@ -162,9 +162,8 @@ class Game {
     }
 
     checkCollisions() {
-        // Split collision checks into two separate parts
+        // Only check player-enemy collisions now
         this.checkPlayerEnemyCollisions();
-        this.checkProjectileEnemyCollisions();
     }
 
     checkPlayerEnemyCollisions() {
@@ -192,45 +191,6 @@ class Game {
                 }
             }
         }
-    }
-
-    checkProjectileEnemyCollisions() {
-        // Always check projectile-enemy collisions regardless of player state
-        if (!this.weaponSystem || !this.enemySpawner) return;
-
-        const projectilesToRemove = new Set();
-        const enemiesToRemove = new Set();
-
-        this.weaponSystem.projectiles.forEach((projectile, projectileIndex) => {
-            this.enemySpawner.enemies.forEach((enemy, enemyIndex) => {
-                const dx = projectile.x - enemy.x;
-                const dy = projectile.y - enemy.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance < (enemy.width + projectile.size) / 2) {
-                    // Add to removal sets
-                    projectilesToRemove.add(projectileIndex);
-                    enemiesToRemove.add(enemyIndex);
-                    
-                    // Add experience when enemy is killed
-                    if (this.upgradeSystem) {
-                        this.upgradeSystem.addExperience(enemy.expValue);
-                    }
-                }
-            });
-        });
-
-        // Remove enemies and projectiles (in reverse order to maintain indices)
-        const enemyIndices = Array.from(enemiesToRemove).sort((a, b) => b - a);
-        const projectileIndices = Array.from(projectilesToRemove).sort((a, b) => b - a);
-
-        enemyIndices.forEach(index => {
-            this.enemySpawner.enemies.splice(index, 1);
-        });
-
-        projectileIndices.forEach(index => {
-            this.weaponSystem.projectiles.splice(index, 1);
-        });
     }
 
     gameOver() {

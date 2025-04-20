@@ -5,6 +5,7 @@ class Enemy {
         this.speed = 2;
         this.width = 48;
         this.height = 48;
+        this.health = 1;  // Health property
         this.facingLeft = true;
         this.expValue = 10; // Experience value when killed
         
@@ -167,10 +168,11 @@ class EnemySpawner {
             });
         }
 
-        // Remove enemies that are far off screen
+        // Remove dead enemies and those that are far off screen
         const initialCount = this.enemies.length;
         this.enemies = this.enemies.filter(enemy => {
-            return enemy.x > -100 && 
+            return enemy.health > 0 && // Remove dead enemies
+                   enemy.x > -100 && 
                    enemy.x < canvasWidth + 100 && 
                    enemy.y > -100 && 
                    enemy.y < canvasHeight + 100;
