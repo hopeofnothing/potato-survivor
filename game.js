@@ -4,6 +4,10 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.setupCanvas();
 
+        // Add window resize handler
+        window.addEventListener('resize', () => this.handleResize());
+        this.handleResize(); // Initial resize
+
         this.keys = {};
         this.gameState = 'start'; // 'start', 'playing', 'paused', 'gameOver'
         this.startTime = 0;
@@ -13,6 +17,11 @@ class Game {
         this.highScore = localStorage.getItem('highScore') || 0;
         this.isUpgrading = false;
         this.animationFrameId = null; // Track the animation frame
+        
+        // Mobile controls
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        this.joystick = null;
+        this.joystickDirection = { x: 0, y: 0 };
         
         // Create background texture canvas
         this.generateBackgroundTexture();
@@ -35,9 +44,43 @@ class Game {
         this.setupAudioControls();
     }
 
+    handleResize() {
+        // Get the container dimensions
+        const container = document.getElementById('game-container');
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        // Calculate the aspect ratio
+        const targetAspectRatio = 4/3; // You can adjust this to your preferred aspect ratio
+        let canvasWidth = containerWidth;
+        let canvasHeight = containerHeight;
+
+        // Adjust dimensions to maintain aspect ratio
+        if (containerWidth / containerHeight > targetAspectRatio) {
+            canvasWidth = containerHeight * targetAspectRatio;
+        } else {
+            canvasHeight = containerWidth / targetAspectRatio;
+        }
+
+        // Set canvas dimensions
+        this.canvas.width = canvasWidth;
+        this.canvas.height = canvasHeight;
+
+        // Update background texture if it exists
+        if (this.backgroundCanvas) {
+            this.generateBackgroundTexture();
+        }
+
+        // If game is running, reposition player
+        if (this.player) {
+            this.player.x = canvasWidth / 2;
+            this.player.y = canvasHeight / 2;
+        }
+    }
+
     setupCanvas() {
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+        // Initial canvas setup will be handled by handleResize
+        this.handleResize();
     }
 
     setupEventListeners() {
@@ -122,6 +165,13 @@ class Game {
         
         // Create UI elements
         this.createExpUI();
+        this.updateLivesDisplay(); // Initialize lives display
+
+        // Setup mobile controls if on mobile
+        if (this.isMobile) {
+            document.getElementById('joystick-container').classList.add('playing');
+            this.setupMobileControls();
+        }
 
         // Start audio
         this.audioManager.playBGM();
@@ -220,6 +270,11 @@ class Game {
         document.getElementById('final-score').textContent = survivalTime;
         document.getElementById('game-over-high-score').textContent = this.highScore;
         this.canvas.style.opacity = '0.7';
+
+        // Disable joystick
+        if (this.isMobile) {
+            document.getElementById('joystick-container').classList.remove('playing');
+        }
     }
 
     update() {
@@ -229,7 +284,9 @@ class Game {
         
         // Update all game objects
         if (this.player) {
-            this.player.update(this.keys, this.currentTime, this.canvas.width, this.canvas.height);
+            // Use joystick input for mobile, keyboard for desktop
+            const input = this.isMobile ? this.joystickDirection : this.keys;
+            this.player.update(input, this.currentTime, this.canvas.width, this.canvas.height);
         }
 
         if (this.enemySpawner) {
@@ -340,6 +397,9 @@ class Game {
             if (this.weaponSystem) {
                 this.weaponSystem.draw(this.ctx);
             }
+
+            // Draw UI (including hearts)
+            this.drawUI();
         }
     }
 
@@ -412,6 +472,12 @@ class Game {
             upgradeMenu.remove();
         }
 
+        // Destroy joystick if it exists
+        if (this.joystick) {
+            this.joystick.destroy();
+            this.joystick = null;
+        }
+
         // Reset game objects
         this.player = null;
         this.enemySpawner = null;
@@ -428,31 +494,43 @@ class Game {
     }
 
     drawUI() {
-        // Draw lives
-        const heartSize = 20;
-        const heartSpacing = 25;
-        const heartY = 20;
-        
-        // Always draw all hearts (both full and empty)
-        for (let i = 0; i < this.player.maxHealth; i++) {
-            const heartX = 20 + (i * heartSpacing);
-            
-            // Draw empty heart
-            this.ctx.fillStyle = '#400';
-            this.ctx.beginPath();
-            this.ctx.arc(heartX, heartY, heartSize/2, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Draw full heart if health permits
-            if (i < this.player.health) {
-                this.ctx.fillStyle = '#f00';
-                this.ctx.beginPath();
-                this.ctx.arc(heartX, heartY, heartSize/2, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-        }
-        
-        // ... (rest of UI drawing)
+        // This method is now empty since we're using HTML for lives display
+    }
+
+    setupMobileControls() {
+        if (!this.isMobile) return;
+
+        console.log('Setting up mobile controls...');
+        console.log('Nipplejs available:', typeof nipplejs !== 'undefined');
+
+        const joystickContainer = document.getElementById('joystick-container');
+        const options = {
+            zone: joystickContainer,
+            color: '#ff6600',
+            size: 150,
+            threshold: 0.1,
+            fadeTime: 250,
+            mode: 'dynamic',
+            position: { left: '50%', top: '50%' },
+            restJoystick: true,
+            restOpacity: 0.5,
+            lockX: false,
+            lockY: false,
+            dynamicPage: true
+        };
+
+        this.joystick = nipplejs.create(options);
+
+        this.joystick.on('move', (evt, data) => {
+            this.joystickDirection = {
+                x: data.vector.x,
+                y: -data.vector.y // Invert the Y-axis
+            };
+        });
+
+        this.joystick.on('end', () => {
+            this.joystickDirection = { x: 0, y: 0 };
+        });
     }
 }
 

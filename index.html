@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sweet Potato Survivor</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.css">
 </head>
 <body>
     <div id="game-container">
@@ -39,7 +40,9 @@
             <div id="score">Time: 0s</div>
             <button id="mute-button" class="mute-button">🔊</button>
         </div>
+        <div id="joystick-container"></div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
     <script src="audio.js"></script>
     <script src="player.js"></script>
     <script src="enemy.js"></script>

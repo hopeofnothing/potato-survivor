@@ -38,7 +38,7 @@ class Player {
         this.isGif = this.sprite.src.toLowerCase().endsWith('.gif');
     }
 
-    update(keys, currentTime, canvasWidth, canvasHeight) {
+    update(input, currentTime, canvasWidth, canvasHeight) {
         // Update invulnerability
         if (this.invulnerable && currentTime - this.lastHitTime > this.invulnerableTime) {
             this.invulnerable = false;
@@ -47,16 +47,24 @@ class Player {
         let newX = this.x;
         let newY = this.y;
 
-        // Calculate new position based on input
-        if (keys.w || keys.ArrowUp) newY -= this.speed;
-        if (keys.s || keys.ArrowDown) newY += this.speed;
-        if (keys.a || keys.ArrowLeft) {
-            newX -= this.speed;
-            this.facingLeft = true;
-        }
-        if (keys.d || keys.ArrowRight) {
-            newX += this.speed;
-            this.facingLeft = false;
+        // Handle input (both keyboard and joystick)
+        if (this.game.isMobile) {
+            // Joystick input
+            newX += input.x * this.speed;
+            newY += input.y * this.speed;
+            this.facingLeft = input.x < 0;
+        } else {
+            // Keyboard input
+            if (input.w || input.ArrowUp) newY -= this.speed;
+            if (input.s || input.ArrowDown) newY += this.speed;
+            if (input.a || input.ArrowLeft) {
+                newX -= this.speed;
+                this.facingLeft = true;
+            }
+            if (input.d || input.ArrowRight) {
+                newX += this.speed;
+                this.facingLeft = false;
+            }
         }
 
         // Constrain to screen bounds
