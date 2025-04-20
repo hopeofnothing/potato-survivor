@@ -3,21 +3,29 @@ class Player {
         this.x = x;
         this.y = y;
         this.speed = 5;
+        this.game = game;
         
         // Create and load the player image with error handling
         this.sprite = new Image();
         this.sprite.onload = () => {
             console.log('Player sprite loaded successfully');
+            // Set dimensions based on actual sprite size
+            // Scale the sprite while maintaining aspect ratio
+            const scale = 1.0; // Increased from 0.5 to make the sprite larger
+            this.width = this.sprite.naturalWidth * scale;
+            this.height = this.sprite.naturalHeight * scale;
         };
         this.sprite.onerror = () => {
             console.error('Error loading player sprite');
+            // Fallback dimensions if sprite fails to load
+            this.width = 48;
+            this.height = 48;
         };
-        this.sprite.src = 'assets/Hero_SweetPotato.png'; // Make sure this matches your file name
+        this.sprite.src = 'assets/Hero_SweetPotato.png';
         
-        // We'll set the size based on your image
-        // Adjust these numbers based on your image size
-        this.width = 48;  // Set this to your image width or desired width
-        this.height = 48; // Set this to your image height or desired height
+        // Initial dimensions (will be updated when sprite loads)
+        this.width = 48;
+        this.height = 48;
         
         this.facingLeft = false;
         this.lives = 3; // Initialize with 3 lives
@@ -25,7 +33,6 @@ class Player {
         this.invulnerable = false; // For invulnerability frames after getting hit
         this.invulnerableTime = 2000; // 2 seconds of invulnerability
         this.lastHitTime = 0;
-        this.game = game; // Reference to game instance
         
         // If you're using a GIF, you might want to handle the animation
         this.isGif = this.sprite.src.toLowerCase().endsWith('.gif');

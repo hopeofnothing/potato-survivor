@@ -3,11 +3,9 @@ class Enemy {
         this.x = x;
         this.y = y;
         this.speed = 2;
-        this.width = 48;
-        this.height = 48;
-        this.health = 1;  // Health property
+        this.health = 1;
         this.facingLeft = true;
-        this.expValue = 10; // Experience value when killed
+        this.expValue = 10;
         
         console.log(`Creating enemy at position: ${x}, ${y}`);
         
@@ -15,11 +13,23 @@ class Enemy {
         this.sprite = new Image();
         this.sprite.onload = () => {
             console.log('Enemy sprite loaded successfully');
+            // Set dimensions based on actual sprite size
+            // Scale the sprite while maintaining aspect ratio
+            const scale = 0.8; // Increased from 0.4 to make the sprite larger
+            this.width = this.sprite.naturalWidth * scale;
+            this.height = this.sprite.naturalHeight * scale;
         };
         this.sprite.onerror = () => {
             console.error('Error loading enemy sprite');
+            // Fallback dimensions if sprite fails to load
+            this.width = 48;
+            this.height = 48;
         };
         this.sprite.src = 'assets/Ugly_Fairy.png';
+        
+        // Initial dimensions (will be updated when sprite loads)
+        this.width = 48;
+        this.height = 48;
     }
 
     update(playerX, playerY) {

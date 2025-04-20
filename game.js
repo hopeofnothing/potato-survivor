@@ -328,7 +328,6 @@ class Game {
         if (this.gameState === 'playing' || this.gameState === 'paused') {
             // Draw enemies first
             if (this.enemySpawner && this.enemySpawner.enemies.length > 0) {
-                // Remove the debug circle and just draw enemies
                 this.enemySpawner.draw(this.ctx);
             }
             
@@ -337,11 +336,9 @@ class Game {
                 this.player.draw(this.ctx);
             }
             
-            // Draw projectiles
+            // Draw weapon system (projectiles and explosions)
             if (this.weaponSystem) {
-                this.weaponSystem.projectiles.forEach(projectile => {
-                    projectile.draw(this.ctx);
-                });
+                this.weaponSystem.draw(this.ctx);
             }
         }
     }

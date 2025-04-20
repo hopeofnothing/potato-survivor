@@ -8,12 +8,9 @@ class Projectile {
         this.hitCount = 0;
         this.explodes = false;
         this.explosionLevel = 0;
-        this.baseExplosionRadius = 50;
         this.isExploding = false;
-        this.explosionX = 0;
-        this.explosionY = 0;
-        this.explosionDuration = 20;
         this.explosionTimer = 0;
+        this.explosionDuration = 20;
         
         const dx = targetX - x;
         const dy = targetY - y;
@@ -51,25 +48,6 @@ class Projectile {
             ctx.stroke();
 
             ctx.restore();
-        } else if (this.explosionTimer > 0) {
-            console.log('Drawing explosion, timer:', this.explosionTimer);  // Debug log
-            const alpha = this.explosionTimer / this.explosionDuration;
-            const radius = this.getExplosionRadius();
-            
-            // Draw a test rectangle first to verify context is working
-            ctx.fillStyle = 'red';
-            ctx.fillRect(this.explosionX - 10, this.explosionY - 10, 20, 20);
-            
-            // Draw explosion effect
-            ctx.beginPath();
-            ctx.arc(this.explosionX, this.explosionY, radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#ff6600';  // Solid orange color first
-            ctx.fill();
-            
-            // Add a solid border
-            ctx.strokeStyle = '#ffff00';  // Solid yellow
-            ctx.lineWidth = 4;
-            ctx.stroke();
         }
     }
 
@@ -90,12 +68,90 @@ class Projectile {
     }
 
     shouldBeRemoved() {
-        const should = (this.hitCount >= this.piercing) || 
-                      (this.isExploding && this.explosionTimer <= 0);
-        if (should && this.isExploding) {
-            console.log('Removing exploded projectile');  // Debug log
+        return this.hitCount >= this.piercing;
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.size = Math.random() * 4 + 2;
+        this.speedX = (Math.random() - 0.5) * 8;
+        this.speedY = (Math.random() - 0.5) * 8;
+        this.alpha = 1;
+        this.decay = 0.02 + Math.random() * 0.03; // Random decay rate
+    }
+
+    update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        this.alpha -= this.decay;
+        this.size *= 0.97; // Gradually reduce size
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+class Explosion {
+    constructor(x, y, radius) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.particles = [];
+        this.active = true;
+        
+        console.log('Creating explosion at:', x, y, 'with radius:', radius);
+        
+        // Create particles
+        const particleCount = Math.floor(radius * 1.5);
+        const colors = ['#ff4400', '#ff8800', '#ffaa00', '#ffcc00']; // Fire colors
+        
+        for (let i = 0; i < particleCount; i++) {
+            this.particles.push(new Particle(x, y, colors[Math.floor(Math.random() * colors.length)]));
         }
-        return should;
+        console.log('Created explosion with', particleCount, 'particles');
+    }
+
+    update() {
+        this.particles.forEach(particle => particle.update());
+        this.particles = this.particles.filter(particle => particle.alpha > 0);
+        this.active = this.particles.length > 0;
+    }
+
+    draw(ctx) {
+        if (!ctx) {
+            console.error('No context provided for explosion draw');
+            return;
+        }
+
+        try {
+            // Draw explosion glow
+            const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+            gradient.addColorStop(0, 'rgba(255, 200, 0, 0.2)');
+            gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            
+            ctx.save();
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw particles
+            this.particles.forEach(particle => particle.draw(ctx));
+            ctx.restore();
+        } catch (error) {
+            console.error('Error drawing explosion:', error);
+        }
     }
 }
 
@@ -103,6 +159,7 @@ class WeaponSystem {
     constructor(game) {
         this.game = game;
         this.reset();
+        this.explosions = [];
     }
 
     reset() {
@@ -132,13 +189,12 @@ class WeaponSystem {
                             this.game.upgradeSystem.addExperience(enemy.expValue);
                         }
 
-                        // Handle explosion if we've hit max enemies or the enemy died
-                        if ((projectile.hitCount >= projectile.piercing || enemy.health <= 0) && 
-                            projectile.explodes && this.explosionLevel > 0) {
-                            projectile.startExplosion(projectile.x, projectile.y);
-                            
-                            // Calculate explosion radius based on level
-                            const radius = projectile.getExplosionRadius() * (1 + this.explosionLevel * 0.2);
+                        // Handle explosion if we have the explosion upgrade
+                        if (projectile.explodes && projectile.explosionLevel > 0) {
+                            console.log('Creating explosion for projectile with level:', projectile.explosionLevel);
+                            // Create new explosion effect
+                            const explosionRadius = 50 + (projectile.explosionLevel * 20);
+                            this.createExplosion(projectile.x, projectile.y, explosionRadius);
                             
                             // Apply explosion damage to nearby enemies
                             enemies.forEach(otherEnemy => {
@@ -147,7 +203,7 @@ class WeaponSystem {
                                     const dy = otherEnemy.y - projectile.y;
                                     const distance = Math.sqrt(dx * dx + dy * dy);
                                     
-                                    if (distance <= radius) {
+                                    if (distance <= explosionRadius) {
                                         otherEnemy.health -= this.damage;
                                         // Check if enemy died from explosion and add experience
                                         if (otherEnemy.health <= 0 && this.game && this.game.upgradeSystem) {
@@ -162,7 +218,7 @@ class WeaponSystem {
             }
         });
 
-        // Remove projectiles that have hit their max targets or are done exploding
+        // Remove projectiles that have hit their max targets
         this.projectiles = this.projectiles.filter(p => !p.shouldBeRemoved());
 
         if (currentTime - this.lastShot >= this.shotInterval) {
@@ -172,6 +228,10 @@ class WeaponSystem {
                 this.lastShot = currentTime;
             }
         }
+
+        // Update explosions
+        this.explosions.forEach(explosion => explosion.update());
+        this.explosions = this.explosions.filter(explosion => explosion.active);
     }
 
     checkCollision(projectile, enemy) {
@@ -238,5 +298,40 @@ class WeaponSystem {
         });
         
         return nearest;
+    }
+
+    draw(ctx) {
+        if (!ctx) {
+            console.error('No context provided for weapon system draw');
+            return;
+        }
+
+        try {
+            // Draw projectiles
+            this.projectiles.forEach(projectile => {
+                projectile.draw(ctx);
+            });
+            
+            // Draw explosions
+            console.log('Drawing', this.explosions.length, 'explosions');
+            this.explosions.forEach(explosion => explosion.draw(ctx));
+        } catch (error) {
+            console.error('Error in weapon system draw:', error);
+        }
+    }
+
+    createExplosion(x, y, radius) {
+        console.log('Creating explosion at:', x, y, 'with radius:', radius);
+        this.explosions.push(new Explosion(x, y, radius));
+    }
+
+    handleProjectileCollision(projectile, enemy) {
+        if (projectile.explodes && projectile.explosionLevel > 0) {
+            const explosionRadius = 50 + (projectile.explosionLevel * 20);
+            this.createExplosion(projectile.x, projectile.y, explosionRadius);
+            
+            // Handle explosion damage to nearby enemies
+            // ... rest of explosion logic ...
+        }
     }
 }
