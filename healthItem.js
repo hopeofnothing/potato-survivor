@@ -46,9 +46,20 @@ class HealthItemManager {
     }
 
     spawnHealthItem(x, y) {
-        if (this.items.length < this.maxItems) {
-            this.items.push(new HealthItem(x, y));
-        }
+        // Add padding from edges
+        const padding = 30; // Minimum distance from edges
+        
+        // Get canvas dimensions from the game canvas
+        const canvas = document.getElementById('gameCanvas');
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        
+        // Adjust x and y to stay within bounds
+        x = Math.max(padding, Math.min(canvasWidth - padding, x));
+        y = Math.max(padding, Math.min(canvasHeight - padding, y));
+        
+        const item = new HealthItem(x, y);
+        this.items.push(item);
     }
 
     update() {

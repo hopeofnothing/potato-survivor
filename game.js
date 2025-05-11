@@ -9,6 +9,7 @@ class Game {
         this.handleResize(); // Initial resize
 
         this.keys = {};
+        this.setupKeyboardControls();  // Add this line
         this.gameState = 'start'; // 'start', 'playing', 'paused', 'gameOver'
         this.startTime = 0;
         this.pauseStartTime = 0;
@@ -39,7 +40,7 @@ class Game {
         this.updateHighScoreDisplay();
         this.showStartScreen();
 
-        this.audioManager = new AudioManager();
+        this.audioManager = new AudioManager();  // Make sure this is using audioManager.js
         this.healthItemManager = new HealthItemManager();
         this.setupAudioControls();
     }
@@ -85,18 +86,22 @@ class Game {
 
     setupEventListeners() {
         window.addEventListener('keydown', (e) => {
-            this.keys[e.key] = true;
+            if (this.keys.hasOwnProperty(e.code)) {
+                this.keys[e.code] = true;
+            }
             
             // Handle ESC key for pause
-            if (e.key === 'Escape' && this.gameState === 'playing') {
+            if (e.code === 'Escape' && this.gameState === 'playing') {
                 this.pauseGame();
-            } else if (e.key === 'Escape' && this.gameState === 'paused') {
+            } else if (e.code === 'Escape' && this.gameState === 'paused') {
                 this.resumeGame();
             }
         });
         
         window.addEventListener('keyup', (e) => {
-            this.keys[e.key] = false;
+            if (this.keys.hasOwnProperty(e.code)) {
+                this.keys[e.code] = false;
+            }
         });
 
         document.getElementById('start-button').addEventListener('click', () => {
@@ -159,6 +164,7 @@ class Game {
         this.enemySpawner = new EnemySpawner();
         this.weaponSystem = new WeaponSystem(this);
         this.upgradeSystem = new UpgradeSystem(this.player, this.weaponSystem);
+        this.healthItemManager = new HealthItemManager();  // Reset health item manager
 
         // Set player reference in enemy spawner
         this.enemySpawner.setPlayer(this.player);
@@ -214,6 +220,28 @@ class Game {
     checkCollisions() {
         // Only check player-enemy collisions now
         this.checkPlayerEnemyCollisions();
+        
+        // Add health item collision check
+        if (this.player && this.healthItemManager) {
+            const items = this.healthItemManager.items;
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                const dx = item.x - this.player.x;
+                const dy = item.y - this.player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < (item.width + this.player.width) / 2) {
+                    // Heal player
+                    if (this.player.lives < 3) {  // Max lives check
+                        this.player.lives++;
+                        this.updateLivesDisplay();
+                        this.audioManager.playPickupSound();  // This will now play the heal sound
+                    }
+                    // Remove the health item
+                    items.splice(i, 1);
+                }
+            }
+        }
     }
 
     checkPlayerEnemyCollisions() {
@@ -302,6 +330,11 @@ class Game {
             );
         }
 
+        // Add health item update
+        if (this.healthItemManager) {
+            this.healthItemManager.update();
+        }
+
         this.checkCollisions();
         this.updateExpUI();
 
@@ -386,6 +419,11 @@ class Game {
             // Draw enemies first
             if (this.enemySpawner && this.enemySpawner.enemies.length > 0) {
                 this.enemySpawner.draw(this.ctx);
+            }
+            
+            // Draw health items
+            if (this.healthItemManager) {
+                this.healthItemManager.draw(this.ctx);
             }
             
             // Draw player
@@ -532,9 +570,38 @@ class Game {
             this.joystickDirection = { x: 0, y: 0 };
         });
     }
+
+    setupKeyboardControls() {
+        // Initialize movement keys
+        this.keys = {
+            'w': false,
+            's': false,
+            'a': false,
+            'd': false,
+            'ArrowUp': false,
+            'ArrowDown': false,
+            'ArrowLeft': false,
+            'ArrowRight': false,
+            ' ': false  // Space key
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+                this.keys[e.key.toLowerCase()] = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+                this.keys[e.key.toLowerCase()] = false;
+            }
+        });
+    }
 }
 
 // Start the game when the page loads
 window.onload = () => {
     new Game();
 };
+
+

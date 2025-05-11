@@ -178,7 +178,6 @@ class WeaponSystem {
             projectile.update();
             
             if (!projectile.isExploding) {
-                // Check collisions with all enemies before removing projectile
                 enemies.forEach(enemy => {
                     if (this.checkCollision(projectile, enemy) && projectile.canHitEnemy()) {
                         enemy.health -= this.damage;
@@ -187,6 +186,15 @@ class WeaponSystem {
                         // Check if enemy died and add experience
                         if (enemy.health <= 0 && this.game && this.game.upgradeSystem) {
                             this.game.upgradeSystem.addExperience(enemy.expValue);
+                            // Add health drop chance when enemy dies
+                            if (Math.random() < 0.1) { // 10% chance to drop health
+                                if (this.game.healthItemManager) {
+                                    console.log('Attempting to spawn health item at:', enemy.x, enemy.y);
+                                    this.game.healthItemManager.spawnHealthItem(enemy.x, enemy.y);
+                                } else {
+                                    console.error('healthItemManager not initialized');
+                                }
+                            }
                         }
 
                         // Handle explosion if we have the explosion upgrade
@@ -196,9 +204,9 @@ class WeaponSystem {
                             const explosionRadius = 50 + (projectile.explosionLevel * 20);
                             this.createExplosion(projectile.x, projectile.y, explosionRadius);
                             
-                            // Apply explosion damage to nearby enemies
+                            // Apply explosion damage to nearby enemies - FIXED: Added null check and enemy health check
                             enemies.forEach(otherEnemy => {
-                                if (otherEnemy !== enemy && otherEnemy.health > 0) {
+                                if (otherEnemy && otherEnemy !== enemy && otherEnemy.health > 0) {
                                     const dx = otherEnemy.x - projectile.x;
                                     const dy = otherEnemy.y - projectile.y;
                                     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -322,6 +330,11 @@ class WeaponSystem {
 
     createExplosion(x, y, radius) {
         console.log('Creating explosion at:', x, y, 'with radius:', radius);
+        // Add validation to prevent invalid explosions
+        if (isNaN(x) || isNaN(y) || isNaN(radius) || radius <= 0) {
+            console.error('Invalid explosion parameters:', x, y, radius);
+            return;
+        }
         this.explosions.push(new Explosion(x, y, radius));
     }
 

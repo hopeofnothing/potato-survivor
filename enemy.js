@@ -1,8 +1,8 @@
 class Enemy {
-    constructor(x, y) {
+    constructor(x, y, player) {
         this.x = x;
         this.y = y;
-        this.speed = 2;
+        this.speed = 1.5; // Reduced from 2.0 (25% slower)
         this.health = 1;
         this.facingLeft = true;
         this.expValue = 10;
@@ -88,36 +88,77 @@ class EnemySpawner {
 
     reset() {
         this.enemies = [];
-        this.spawnInterval = 1000;
+        this.spawnInterval = 1000;  // Starting spawn interval
         this.lastSpawn = 0;
         this.maxEnemies = 40;
         this.lastDifficultyIncrease = 0;
-        this.difficultyIncreaseInterval = 30000;
+        this.difficultyIncreaseInterval = 30000;  // Every 30 seconds
         this.wave = 1;
         this.player = null;
-    }
-
-    startGame() {
-        // Spawn multiple enemies at game start
-        for (let i = 0; i < this.initialSpawnCount; i++) {
-            this.spawn(this.canvas.width, this.canvas.height);
-        }
+        this.baseSpawnCount = 1;  // Base number of enemies to spawn at once
     }
 
     increaseDifficulty() {
         this.wave++;
-        // Faster spawn rate
-        this.spawnInterval = Math.max(150, this.spawnInterval - 30); // Minimum 0.15 seconds between spawns
-        // More enemies allowed
-        this.maxEnemies = Math.min(100, 75 + (this.wave * 5));
         
-        // Spawn a wave of enemies when difficulty increases
-        const waveSpawnCount = Math.min(10, this.wave * 2);
-        for (let i = 0; i < waveSpawnCount; i++) {
-            this.spawn(this.canvas.width, this.canvas.height);
+        // Progressively decrease spawn interval (faster spawns)
+        // Minimum 150ms between spawns, reduces by 5% each wave
+        this.spawnInterval = Math.max(150, this.spawnInterval * 0.95);
+        
+        // Increase max enemies (more enemies on screen)
+        // Maximum 100 enemies, increases by wave number
+        this.maxEnemies = Math.min(100, 40 + (this.wave * 3));
+        
+        // Increase base spawn count (more enemies per spawn)
+        // Maximum 5 enemies per spawn, increases every 3 waves
+        this.baseSpawnCount = Math.min(5, 1 + Math.floor(this.wave / 3));
+        
+        // Create wave announcement text
+        console.log(`Wave ${this.wave} started!`);
+    }
+
+    update(currentTime, canvasWidth, canvasHeight) {
+        // Check if it's time to increase difficulty
+        if (currentTime - this.lastDifficultyIncrease > this.difficultyIncreaseInterval) {
+            this.increaseDifficulty();
+            this.lastDifficultyIncrease = currentTime;
         }
-        
-        this.createWaveAnnouncement();
+
+        // Spawn multiple enemies if enough time has passed
+        if (currentTime - this.lastSpawn > this.spawnInterval && 
+            this.enemies.length < this.maxEnemies) {
+            
+            // Calculate dynamic spawn count based on current wave
+            const maxSpawnCount = Math.min(
+                this.baseSpawnCount + Math.floor(Math.random() * (this.wave / 2)),
+                this.maxEnemies - this.enemies.length
+            );
+            
+            for (let i = 0; i < maxSpawnCount; i++) {
+                this.spawn(canvasWidth, canvasHeight);
+            }
+            this.lastSpawn = currentTime;
+        }
+
+        // Update all enemies
+        if (this.player) {
+            this.enemies.forEach(enemy => {
+                enemy.update(this.player.x, this.player.y);
+            });
+        }
+
+        // Remove dead enemies and those that are far off screen
+        const initialCount = this.enemies.length;
+        this.enemies = this.enemies.filter(enemy => {
+            return enemy.health > 0 && // Remove dead enemies
+                   enemy.x > -100 && 
+                   enemy.x < canvasWidth + 100 && 
+                   enemy.y > -100 && 
+                   enemy.y < canvasHeight + 100;
+        });
+        if (initialCount !== this.enemies.length) {
+            console.log(`Removed ${initialCount - this.enemies.length} enemies. ${this.enemies.length} remaining`);
+        }
     }
 
     spawn(canvasWidth, canvasHeight) {
@@ -152,44 +193,6 @@ class EnemySpawner {
         const enemy = new Enemy(x, y);
         this.enemies.push(enemy);
         console.log(`Spawned enemy at: ${x}, ${y}. Total enemies: ${this.enemies.length}`);
-    }
-
-    update(currentTime, canvasWidth, canvasHeight) {
-        // Spawn multiple enemies if enough time has passed
-        if (currentTime - this.lastSpawn > this.spawnInterval && 
-            this.enemies.length < this.maxEnemies) {
-            
-            // Spawn 1-3 enemies at once
-            const spawnCount = Math.min(
-                3, 
-                this.maxEnemies - this.enemies.length
-            );
-            
-            for (let i = 0; i < spawnCount; i++) {
-                this.spawn(canvasWidth, canvasHeight);
-            }
-            this.lastSpawn = currentTime;
-        }
-
-        // Update all enemies
-        if (this.player) {
-            this.enemies.forEach(enemy => {
-                enemy.update(this.player.x, this.player.y);
-            });
-        }
-
-        // Remove dead enemies and those that are far off screen
-        const initialCount = this.enemies.length;
-        this.enemies = this.enemies.filter(enemy => {
-            return enemy.health > 0 && // Remove dead enemies
-                   enemy.x > -100 && 
-                   enemy.x < canvasWidth + 100 && 
-                   enemy.y > -100 && 
-                   enemy.y < canvasHeight + 100;
-        });
-        if (initialCount !== this.enemies.length) {
-            console.log(`Removed ${initialCount - this.enemies.length} enemies. ${this.enemies.length} remaining`);
-        }
     }
 
     draw(ctx) {
